@@ -1,0 +1,109 @@
+#!/bin/bash
+lang="c"
+#pipe=false
+#output=false
+
+args=""
+gdb=false
+clear_pipe=false
+clear_output=false
+
+while getopts ":a:p:o:lcdg" opt; do
+  case $opt in
+    a) args="$OPTARG"
+    ;;
+    p) pipe="$OPTARG"
+    ;;
+    o) output="$OPTARG"
+    ;;
+    l) cpp=true
+       lang="cpp"
+    ;;
+    c) clear_pipe=true
+    ;;
+    d) clear_output=true
+    ;;
+    g) gdb=true
+    ;;
+    \?) echo "Invalid option -$OPTARG" >&2
+    ;;
+  esac
+done
+
+
+
+if [ -z $cpp ] && ! [ -z ${pipe+x} ]
+then 
+	if echo $pipe | grep '.cpp$' -q
+	then
+		cpp=true
+	elif echo $pipe | grep '.c$' -q
+	then
+		cpp=false
+	else
+		echo "Error: input file must end in .c or .cpp" > /dev/stderr
+		exit 1
+	fi
+fi
+
+if [ -z ${pipe+x} ] || [ -z ${output+x} ]
+then
+	uuid="$(uuidgen)"
+fi
+
+if [ -z ${pipe+x} ]
+then
+	pipe=/tmp/$uuid.$lang
+	clear_pipe=true
+fi
+
+if [ -z ${output+x} ]
+then
+	output=/tmp/$uuid
+	clear_output=true
+fi
+
+vim "$pipe"
+
+if $cpp
+then
+	gcc $pipe -o $output -lstdc++
+else
+	gcc $pipe -o $output
+fi
+
+chmod +x $output
+if $gdb
+then
+	gdb --args $output $args
+else
+	"$( realpath $output )" $args
+fi
+
+echo "Rewrite? [y/n]"
+
+if [[ "$(head -n 1 /dev/stdin)" == "y" ]]
+then
+	if $clear_pipe && $clear_output
+	then
+		exec simplec -p $pipe -o $output -cd -a "$args"
+	elif $clear_pipe
+	then
+		exec simplec -p $pipe -o $output -c -a "$args"
+	elif $clear_output
+	then
+		exec simplec -p $pipe -o $output -d -a "$args"
+	else
+		exec simplec -p $pipe -o $output -a "$args"
+	fi
+fi
+
+if $clear_pipe
+then
+	rm $pipe
+fi
+if $clear_output
+then
+	rm $output
+fi
+

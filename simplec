@@ -63,7 +63,7 @@ then
 	clear_output=true
 fi
 
-vim "$pipe"
+$EDITOR "$pipe"
 
 if $cpp
 then
